@@ -101,3 +101,88 @@ def _register_in_alembic(model_name: str, module_folder: str) -> None:
             f"Please add manually:\n     {import_line}",
             fg=typer.colors.YELLOW,
         )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Commands
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.command()
+def module(
+    name: str = typer.Argument(..., help="Module name in PascalCase (e.g. Invoice, InvoiceItem)"),
+    modules_dir: str = typer.Option("modules", "--dir", "-d", help="Modules root directory"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing files"),
+):
+    """
+    Generate a new module with model, schemas, repository, and service.
+
+    \b
+    Example:
+        fastkit make module Invoice
+        fastkit make module InvoiceItem --dir src/modules
+    """
+    # Derive naming variants
+    model_name = _to_pascal_case(name)
+    snake_name = _to_snake_case(model_name)
+    table_name = _to_plural(snake_name)
+    module_folder = snake_name + "s" if not snake_name.endswith("s") else snake_name
+
+    # Use table_name as folder name (e.g. invoices)
+    module_path = Path(modules_dir) / table_name
+
+    typer.echo("")
+    typer.secho(f"Generating module: {model_name}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+    typer.echo(f"  Location : {module_path}/")
+    typer.echo(f"  Model    : {model_name}")
+    typer.echo(f"  Table    : {table_name}")
+    typer.echo("")
+
+    # Create module directory
+    module_path.mkdir(parents=True, exist_ok=True)
+
+    # Create __init__.py
+    init_file = module_path / "__init__.py"
+    if not init_file.exists() or force:
+        init_file.write_text("")
+        typer.secho(f"  ✓  __init__.py", fg=typer.colors.GREEN)
+
+    # Jinja2 context
+    context = {
+        "model_name": model_name,
+        "snake_name": snake_name,
+        "table_name": table_name,
+        "module_folder": table_name,
+    }
+
+    # Generate each template
+    skipped = []
+    for template_name, output_filename in MODULE_TEMPLATES:
+        output_path = module_path / output_filename
+
+        if output_path.exists() and not force:
+            skipped.append(output_filename)
+            continue
+
+        try:
+            content = _render_template(template_name, context)
+            output_path.write_text(content)
+            typer.secho(f"  ✓  {output_filename}", fg=typer.colors.GREEN)
+        except Exception as e:
+            typer.secho(f"  ✗  {output_filename} — {e}", fg=typer.colors.RED)
+
+    if skipped:
+        typer.echo("")
+        typer.secho(
+            f"  Skipped {len(skipped)} existing file(s). Use --force to overwrite.",
+            fg=typer.colors.YELLOW,
+        )
+
+    # Register model in Alembic
+    typer.echo("")
+    _register_in_alembic(model_name, table_name)
+
+    typer.echo("")
+    typer.secho("Done! Next steps:", fg=typer.colors.BRIGHT_WHITE, bold=True)
+    typer.echo(f"  1. Define your fields in  {module_path}/models.py")
+    typer.echo(f"  2. Add schemas in          {module_path}/schemas.py")
+    typer.echo(f"  3. Run: fastkit migrate make -m 'create_{table_name}'")
+    typer.echo("")
