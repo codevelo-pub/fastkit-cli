@@ -191,3 +191,41 @@ def module(
     typer.echo(f"  2. Add schemas in          {module_path}/schemas.py")
     typer.echo(f"  3. Run: fastkit migrate make -m 'create_{table_name}'")
     typer.echo("")
+
+@app.command()
+def model(
+    name: str = typer.Argument(..., help="Model name in PascalCase (e.g. Invoice, InvoiceItem)"),
+    path: str = typer.Option("path", "--path", "-d", help="Path to directory"),
+):
+    # Derive naming variants
+    model_name = _to_pascal_case(name)
+    snake_name = _to_snake_case(model_name)
+    table_name = _to_plural(snake_name)
+
+    # Jinja2 context
+    context = {
+        "model_name": model_name,
+        "snake_name": snake_name,
+        "table_name": table_name,
+        "module_folder": table_name,
+    }
+
+    template_name = "model.py.jinja"
+    output_filename = "models.py"
+    module_path = Path(path)
+    output_path = module_path / output_filename
+    try:
+        content = _render_template(template_name, context)
+        output_path.write_text(content)
+        typer.secho(f"  ✓  {output_filename}", fg=typer.colors.GREEN)
+    except Exception as e:
+        typer.secho(f"  ✗  {output_filename} — {e}", fg=typer.colors.RED)
+
+    # Register model in Alembic
+    typer.echo("")
+    _register_in_alembic(model_name, table_name)
+
+    typer.echo("")
+    typer.secho("Done!", fg=typer.colors.BRIGHT_WHITE, bold=True)
+    typer.echo(f"  Define your fields in  {module_path}/models.py")
+    typer.echo("")
