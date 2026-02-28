@@ -329,3 +329,39 @@ def service(
     typer.echo("")
     typer.secho("Done!", fg=typer.colors.BRIGHT_WHITE, bold=True)
     typer.echo("")
+
+@app.command()
+def router(
+    name: str = typer.Argument(..., help="Router name in PascalCase (e.g. Invoice)"),
+    path: str = typer.Option(".", "--path", "-p", help="Path to target directory"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing file"),
+    async_mode: bool = typer.Option(False, "--async", "-a", help="Use async router"),
+):
+    """
+    Generate only a router file.
+
+    \b
+    Example:
+        fastkit make router Invoice
+        fastkit make router Invoice --async
+        fastkit make router Invoice --path modules/invoices
+    """
+    context = _build_context(name)
+    module_path = Path(path)
+    template = "async_router.py.jinja" if async_mode else "router.py.jinja"
+
+    typer.echo("")
+    typer.secho(f"Generating router: {context['model_name']}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+    typer.echo(f"  Mode: {'async' if async_mode else 'sync'}")
+    typer.echo("")
+
+    _render_and_write(
+        template_name=template,
+        output_path=module_path / "router.py",
+        context=context,
+        force=force,
+    )
+
+    typer.echo("")
+    typer.secho("Done!", fg=typer.colors.BRIGHT_WHITE, bold=True)
+    typer.echo("")
