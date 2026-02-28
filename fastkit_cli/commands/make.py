@@ -162,6 +162,7 @@ def module(
         ("schemas.py.jinja", "schemas.py"),
         ("async_repository.py.jinja" if async_mode else "repository.py.jinja", "repository.py"),
         ("async_service.py.jinja" if async_mode else "service.py.jinja", "service.py"),
+        ("async_router.py.jinja" if async_mode else "router.py.jinja", "router.py"),
     ]
 
     skipped: list = []
