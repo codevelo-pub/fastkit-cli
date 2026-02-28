@@ -222,3 +222,36 @@ def model(
     typer.secho("Done!", fg=typer.colors.BRIGHT_WHITE, bold=True)
     typer.echo(f"  Define your fields in  {module_path}/models.py")
     typer.echo("")
+
+@app.command()
+def schema(
+    name: str = typer.Argument(..., help="Schema name in PascalCase (e.g. Invoice)"),
+    path: str = typer.Option(".", "--path", "-p", help="Path to target directory"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing file"),
+):
+    """
+    Generate only a schemas file.
+
+    \b
+    Example:
+        fastkit make schema Invoice
+        fastkit make schema Invoice --path modules/invoices
+    """
+    context = _build_context(name)
+    module_path = Path(path)
+
+    typer.echo("")
+    typer.secho(f"Generating schemas: {context['model_name']}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+    typer.echo("")
+
+    _render_and_write(
+        template_name="schemas.py.jinja",
+        output_path=module_path / "schemas.py",
+        context=context,
+        force=force,
+    )
+
+    typer.echo("")
+    typer.secho("Done!", fg=typer.colors.BRIGHT_WHITE, bold=True)
+    typer.echo(f"  Define your schemas in  {module_path}/schemas.py")
+    typer.echo("")
