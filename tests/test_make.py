@@ -51,3 +51,41 @@ class TestToSnakeCase:
 
     def test_camel_case(self):
         assert _to_snake_case("invoiceItem") == "invoice_item"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _to_plural
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestToPlural:
+    def test_regular_word(self):
+        assert _to_plural("invoice") == "invoices"
+
+    def test_ends_with_y_consonant(self):
+        assert _to_plural("category") == "categories"
+
+    def test_ends_with_y_company(self):
+        assert _to_plural("company") == "companies"
+
+    def test_ends_with_ay(self):
+        assert _to_plural("day") == "days"
+
+    def test_ends_with_ey(self):
+        assert _to_plural("key") == "keys"
+
+    def test_ends_with_oy(self):
+        assert _to_plural("boy") == "boys"
+
+    def test_ends_with_s(self):
+        assert _to_plural("status") == "statuses"
+
+    def test_ends_with_sh(self):
+        assert _to_plural("wish") == "wishes"
+
+    def test_ends_with_ch(self):
+        assert _to_plural("branch") == "branches"
+
+    def test_ends_with_x(self):
+        assert _to_plural("box") == "boxes"
+
+    def test_compound_snake_case(self):
+        assert _to_plural("invoice_item") == "invoice_items"
