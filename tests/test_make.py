@@ -505,3 +505,63 @@ class TestMakeSchemaCommand:
             runner.invoke(app, ["schema", "Invoice", "--path", str(tmp_path), "--force"])
 
         assert (tmp_path / "schemas.py").read_text() == "# generated"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared behavior: repository, service, router (sync/async + force)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("command,sync_template,async_template,output_file", [
+    ("repository", "repository.py.jinja", "async_repository.py.jinja", "repository.py"),
+    ("service",    "service.py.jinja",    "async_service.py.jinja",    "service.py"),
+    ("router",     "router.py.jinja",     "async_router.py.jinja",     "router.py"),
+])
+class TestAsyncCapableCommands:
+    def test_generates_sync_file(self, tmp_path, command, sync_template, async_template, output_file):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated") as mock_render:
+            result = runner.invoke(app, [command, "Invoice", "--path", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert (tmp_path / output_file).exists()
+        assert mock_render.call_args.args[0] == sync_template
+
+    def test_generates_async_file(self, tmp_path, command, sync_template, async_template, output_file):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated") as mock_render:
+            result = runner.invoke(app, [command, "Invoice", "--path", str(tmp_path), "--async"])
+
+        assert result.exit_code == 0
+        assert mock_render.call_args.args[0] == async_template
+
+    def test_output_file_never_prefixed_with_async(self, tmp_path, command, sync_template, async_template, output_file):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"):
+            runner.invoke(app, [command, "Invoice", "--path", str(tmp_path), "--async"])
+
+        assert (tmp_path / output_file).exists()
+        assert not (tmp_path / f"async_{output_file}").exists()
+
+    def test_output_shows_sync_mode(self, tmp_path, command, sync_template, async_template, output_file):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"):
+            result = runner.invoke(app, [command, "Invoice", "--path", str(tmp_path)])
+
+        assert "sync" in result.output
+
+    def test_output_shows_async_mode(self, tmp_path, command, sync_template, async_template, output_file):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"):
+            result = runner.invoke(app, [command, "Invoice", "--path", str(tmp_path), "--async"])
+
+        assert "async" in result.output
+
+    def test_skips_existing_without_force(self, tmp_path, command, sync_template, async_template, output_file):
+        (tmp_path / output_file).write_text("# original")
+
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"):
+            runner.invoke(app, [command, "Invoice", "--path", str(tmp_path)])
+
+        assert (tmp_path / output_file).read_text() == "# original"
+
+    def test_overwrites_with_force(self, tmp_path, command, sync_template, async_template, output_file):
+        (tmp_path / output_file).write_text("# original")
+
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"):
+            runner.invoke(app, [command, "Invoice", "--path", str(tmp_path), "--force"])
+
+        assert (tmp_path / output_file).read_text() == "# generated"
