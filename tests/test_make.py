@@ -305,3 +305,115 @@ class TestRegisterInAlembic:
         _register_in_alembic("InvoiceItem", "invoice_items")
 
         assert "from modules.invoice_items.models import InvoiceItem  # noqa" in env_py.read_text()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI: fastkit make module
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestMakeModuleCommand:
+    def test_generates_all_six_files(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path)])
+
+        assert result.exit_code == 0
+        module_path = tmp_path / "invoices"
+        for filename in ["__init__.py", "models.py", "schemas.py", "repository.py", "service.py", "router.py"]:
+            assert (module_path / filename).exists(), f"Missing: {filename}"
+
+    def test_sync_mode_uses_sync_templates(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated") as mock_render, \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path)])
+
+        templates = [c.args[0] for c in mock_render.call_args_list]
+        assert "repository.py.jinja" in templates
+        assert "service.py.jinja" in templates
+        assert "router.py.jinja" in templates
+        assert "async_repository.py.jinja" not in templates
+        assert "async_service.py.jinja" not in templates
+        assert "async_router.py.jinja" not in templates
+
+    def test_async_mode_uses_async_templates(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated") as mock_render, \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path), "--async"])
+
+        templates = [c.args[0] for c in mock_render.call_args_list]
+        assert "async_repository.py.jinja" in templates
+        assert "async_service.py.jinja" in templates
+        assert "async_router.py.jinja" in templates
+        assert "repository.py.jinja" not in templates
+        assert "service.py.jinja" not in templates
+        assert "router.py.jinja" not in templates
+
+    def test_model_and_schema_same_regardless_of_mode(self, tmp_path):
+        for flag in [[], ["--async"]]:
+            with patch("fastkit_cli.commands.make._render_template", return_value="# generated") as mock_render, \
+                 patch("fastkit_cli.commands.make._register_in_alembic"):
+                runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path / str(flag)), *flag])
+
+            templates = [c.args[0] for c in mock_render.call_args_list]
+            assert "model.py.jinja" in templates
+            assert "schemas.py.jinja" in templates
+
+    def test_skips_existing_files_without_force(self, tmp_path):
+        module_path = tmp_path / "invoices"
+        module_path.mkdir()
+        existing = module_path / "models.py"
+        existing.write_text("# original")
+
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path)])
+
+        assert existing.read_text() == "# original"
+        assert "Skipped" in result.output
+
+    def test_overwrites_with_force(self, tmp_path):
+        module_path = tmp_path / "invoices"
+        module_path.mkdir()
+        existing = module_path / "models.py"
+        existing.write_text("# original")
+
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path), "--force"])
+
+        assert existing.read_text() == "# generated"
+        assert "Skipped" not in result.output
+
+    def test_output_shows_model_name_and_table(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path)])
+
+        assert "Invoice" in result.output
+        assert "invoices" in result.output
+
+    def test_output_shows_correct_mode(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            sync_result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path / "sync")])
+            async_result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path / "async"), "--async"])
+
+        assert "sync" in sync_result.output
+        assert "async" in async_result.output
+
+    def test_calls_register_in_alembic_with_correct_args(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic") as mock_alembic:
+            runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path)])
+
+        mock_alembic.assert_called_once_with("Invoice", "invoices")
+
+    def test_output_contains_next_steps(self, tmp_path):
+        with patch("fastkit_cli.commands.make._render_template", return_value="# generated"), \
+             patch("fastkit_cli.commands.make._register_in_alembic"):
+            result = runner.invoke(app, ["module", "Invoice", "--dir", str(tmp_path)])
+
+        assert "Next steps" in result.output
+        assert "models.py" in result.output
+        assert "schemas.py" in result.output
+        assert "migrate make" in result.output
