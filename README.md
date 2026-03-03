@@ -1,534 +1,436 @@
-<div align="center">
-  <h1>⚙️ FastKit CLI</h1>
-  
-  <p><strong>Command-Line Tools for FastKit</strong></p>
-  
-  <p>Scaffold projects and generate code like Laravel Artisan</p>
-  
-  [![PyPI version](https://badge.fury.io/py/fastkit-cli.svg)](https://pypi.org/project/fastkit-cli/)
-  [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  
-</div>
+# FastKit CLI
+
+**FastAPI with structure and developer experience.**
+
+FastKit CLI is a code generation tool for the [FastKit](https://github.com/codevelo-pub/fastkit-core) ecosystem. It generates complete, production-ready modules for FastAPI projects — models, schemas, repositories, services, and routers — in seconds.
+
+> Inspired by Laravel's `php artisan`, built for FastAPI developers who want structure without the overhead.
 
 ---
 
-## 🚀 What is FastKit CLI?
+## Requirements
 
-FastKit CLI is a powerful command-line tool that brings Laravel Artisan-style developer experience to FastKit projects. Scaffold complete projects in seconds and generate boilerplate code with simple commands.
-
-**Stop copying and pasting boilerplate code.**
+- Python 3.11+
+- [fastkit-core](https://pypi.org/project/fastkit-core/)
 
 ---
 
-## 📦 Installation
+## Installation
+
 ```bash
 pip install fastkit-cli
 ```
 
-Verify installation:
+Or with [uv](https://github.com/astral-sh/uv) (recommended):
+
 ```bash
-fastkit --version
+uv add fastkit-cli
 ```
 
----
+Verify the installation:
 
-## 🎯 Quick Start
-
-### Create a New Project
 ```bash
-fastkit new my-awesome-api
-```
-
-This creates a complete FastKit project with:
-- ✅ FastAPI application setup
-- ✅ Database configuration (PostgreSQL by default)
-- ✅ Authentication (JWT) built-in
-- ✅ Docker & Docker Compose
-- ✅ Alembic migrations setup
-- ✅ Testing framework configured
-- ✅ Example models, repositories, services
-- ✅ CI/CD workflow (GitHub Actions)
-
-### Start Development
-```bash
-cd my-awesome-api
-cp .env.example .env
-# Edit .env with your database credentials
-
-# Run migrations
-fastkit migrate
-
-# Start development server
-fastkit serve
-```
-
-Visit `http://localhost:8000/docs` - your API is ready! 🎉
-
----
-
-## 📋 Available Commands
-
-### Project Management
-
-#### `fastkit new`
-
-Create a new FastKit project with interactive prompts.
-```bash
-fastkit new my-project
-
-# Options:
-fastkit new my-project \
-  --auth          # Include authentication (default: yes)
-  --admin         # Include admin panel (default: yes)
-  --db postgresql # Database: postgresql|mysql|sqlite
-  --docker        # Include Docker setup (default: yes)
-```
-
-**What gets created:**
-```
-my-project/
-├── app/
-│   ├── models/        # User, Role models (if --auth)
-│   ├── repositories/  # Data access layer
-│   ├── services/      # Business logic
-│   ├── controllers/   # API endpoints
-│   └── main.py        # FastAPI application
-├── alembic/           # Database migrations
-├── tests/             # Test suite
-├── docker-compose.yml # Docker setup
-├── .env.example       # Environment template
-└── README.md          # Project documentation
-```
-
----
-
-### Code Generation
-
-#### `fastkit make:model`
-
-Generate a SQLAlchemy model.
-```bash
-fastkit make:model Product
-
-# With migration:
-fastkit make:model Product -m
-fastkit make:model Product --migration
-```
-
-**Generated:** `app/models/product.py`
-```python
-from fastkit_core.database import Base
-from sqlalchemy import Column, String, Float
-
-class Product(Base):
-    __tablename__ = "products"
-    
-    name = Column(String(100), nullable=False)
-    price = Column(Float, nullable=False)
-```
-
-#### `fastkit make:repository`
-
-Generate a repository for data access.
-```bash
-fastkit make:repository ProductRepository
-
-# Specify model:
-fastkit make:repository ProductRepository --model Product
-```
-
-**Generated:** `app/repositories/product_repository.py`
-```python
-from fastkit_core.database import BaseRepository
-from app.models.product import Product
-
-class ProductRepository(BaseRepository[Product]):
-    def find_by_name(self, name: str):
-        return self.first_where(name=name)
-```
-
-#### `fastkit make:service`
-
-Generate a service for business logic.
-```bash
-fastkit make:service ProductService
-```
-
-**Generated:** `app/services/product_service.py`
-```python
-from fastkit_core.services import BaseService
-from app.repositories.product_repository import ProductRepository
-
-class ProductService(BaseService):
-    def __init__(self, repository: ProductRepository):
-        super().__init__(repository)
-```
-
-#### `fastkit make:controller`
-
-Generate a controller with routes.
-```bash
-# Basic controller
-fastkit make:controller ProductController
-
-# Resource controller (full CRUD)
-fastkit make:controller ProductController --resource
-```
-
-**Generated:** `app/controllers/product_controller.py`
-
-With `--resource`:
-```python
-from fastapi import APIRouter, Depends
-from app.services.product_service import ProductService
-
-router = APIRouter(prefix="/products", tags=["products"])
-
-@router.get("/")
-def list_products(service: ProductService = Depends()):
-    return service.get_all()
-
-@router.post("/")
-def create_product(name: str, price: float, service: ProductService = Depends()):
-    return service.create({"name": name, "price": price})
-
-@router.get("/{product_id}")
-def get_product(product_id: int, service: ProductService = Depends()):
-    return service.get_by_id(product_id)
-
-@router.put("/{product_id}")
-def update_product(product_id: int, data: dict, service: ProductService = Depends()):
-    return service.update(product_id, data)
-
-@router.delete("/{product_id}")
-def delete_product(product_id: int, service: ProductService = Depends()):
-    service.delete(product_id)
-    return {"message": "Product deleted"}
-```
-
-#### `fastkit make:migration`
-
-Generate a database migration.
-```bash
-fastkit make:migration create_products_table
-
-# Auto-generate from models:
-fastkit make:migration --auto
-```
-
----
-
-### Database Commands
-
-#### `fastkit migrate`
-
-Run pending migrations.
-```bash
-# Run all pending migrations
-fastkit migrate
-
-# Migrate to specific revision
-fastkit migrate --revision abc123
-
-# Show SQL without executing
-fastkit migrate --sql
-```
-
-#### `fastkit migrate:rollback`
-
-Rollback the last migration.
-```bash
-# Rollback last migration
-fastkit migrate:rollback
-
-# Rollback multiple steps
-fastkit migrate:rollback --steps 3
-```
-
-#### `fastkit migrate:status`
-
-Show migration status.
-```bash
-fastkit migrate:status
-```
-
-Output:
-```
-┌────────────────┬──────────────────────────────┬───────────┐
-│ Revision       │ Description                  │ Status    │
-├────────────────┼──────────────────────────────┼───────────┤
-│ abc123         │ create_users_table           │ ✓ Applied │
-│ def456         │ create_products_table        │ ✓ Applied │
-│ ghi789         │ add_products_category        │ Pending   │
-└────────────────┴──────────────────────────────┴───────────┘
-```
-
-#### `fastkit db:seed`
-
-Seed the database with sample data.
-```bash
-# Run all seeders
-fastkit db:seed
-
-# Run specific seeder
-fastkit db:seed --class UserSeeder
-```
-
----
-
-### Server Commands
-
-#### `fastkit serve`
-
-Start the development server.
-```bash
-# Default (localhost:8000)
-fastkit serve
-
-# Custom host and port
-fastkit serve --host 0.0.0.0 --port 3000
-
-# Without auto-reload
-fastkit serve --no-reload
-
-# With workers (production)
-fastkit serve --workers 4
-```
-
-#### `fastkit shell`
-
-Open an interactive Python shell with app context.
-```bash
-fastkit shell
-```
-```python
->>> from app.models.user import User
->>> users = User.query.all()
->>> print(len(users))
-5
-```
-
----
-
-### Testing Commands
-
-#### `fastkit test`
-
-Run the test suite.
-```bash
-# Run all tests
-fastkit test
-
-# Run specific file
-fastkit test tests/test_users.py
-
-# Run with coverage
-fastkit test --cov
-
-# Run and open coverage report
-fastkit test --cov --cov-report html
-open htmlcov/index.html
-```
-
----
-
-### Utility Commands
-
-#### `fastkit routes`
-
-List all registered routes.
-```bash
-fastkit routes
-```
-
-Output:
-```
-┌────────┬─────────────────────────────┬──────────────────┐
-│ Method │ Path                        │ Name             │
-├────────┼─────────────────────────────┼──────────────────┤
-│ GET    │ /                           │ root             │
-│ GET    │ /docs                       │ swagger_ui       │
-│ POST   │ /auth/register              │ register         │
-│ POST   │ /auth/login                 │ login            │
-│ GET    │ /users                      │ list_users       │
-│ POST   │ /users                      │ create_user      │
-│ GET    │ /users/{user_id}            │ get_user         │
-│ PUT    │ /users/{user_id}            │ update_user      │
-│ DELETE │ /users/{user_id}            │ delete_user      │
-└────────┴─────────────────────────────┴──────────────────┘
-```
-
-#### `fastkit config`
-
-Show current configuration.
-```bash
-fastkit config
-
-# Show specific config
-fastkit config database
-```
-
----
-
-## 🎨 Customization
-
-### Custom Templates
-
-Create your own code generation templates:
-```bash
-# Create templates directory
-mkdir -p templates/
-
-# Create custom model template
-# templates/model.py.stub
-```
-```python
-from fastkit_core.database import Base
-from sqlalchemy import Column, String
-
-class {{class_name}}(Base):
-    __tablename__ = "{{table_name}}"
-    
-    # Your custom fields here
-    name = Column(String(100))
-```
-
-### Use Custom Template
-```bash
-fastkit make:model Product --template templates/model.py.stub
-```
-
----
-
-## 📚 Documentation
-
-- [**Commands Reference**](https://docs.fastkit.dev/cli/commands) - All commands detailed
-- [**Scaffolding Guide**](https://docs.fastkit.dev/cli/scaffolding) - Project setup
-- [**Code Generation**](https://docs.fastkit.dev/cli/generators) - Custom generators
-- [**Configuration**](https://docs.fastkit.dev/cli/configuration) - CLI config options
-
----
-
-## 🎓 Examples
-
-### Complete Workflow Example
-```bash
-# 1. Create new project
-fastkit new blog-api --auth
-
-cd blog-api
-
-# 2. Generate blog post functionality
-fastkit make:model Post -m
-fastkit make:repository PostRepository --model Post
-fastkit make:service PostService
-fastkit make:controller PostController --resource
-
-# 3. Run migration
-fastkit migrate
-
-# 4. Seed database
-fastkit db:seed
-
-# 5. Start server
-fastkit serve
-
-# 6. Run tests
-fastkit test --cov
-```
-
-### Creating a Complete Feature
-```bash
-# Generate complete CRUD for "Product" feature
-fastkit make:model Product -m
-fastkit make:repository ProductRepository
-fastkit make:service ProductService  
-fastkit make:controller ProductController --resource
-
-# Register routes in app/main.py:
-# app.include_router(product_controller.router)
-
-fastkit migrate
-fastkit serve
-```
-
----
-
-## 🔧 Configuration
-
-### Global Config
-
-`~/.fastkit/config.yaml`:
-```yaml
-defaults:
-  database: postgresql
-  auth: true
-  docker: true
-
-templates:
-  path: ~/.fastkit/templates
-
-editor: code  # VS Code
-```
-
-### Project Config
-
-`.fastkit.yaml` in project root:
-```yaml
-paths:
-  models: app/models
-  repositories: app/repositories
-  services: app/services
-  controllers: app/controllers
-  migrations: alembic/versions
-
-database:
-  driver: postgresql
-  host: localhost
-  port: 5432
-```
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Development Setup
-```bash
-git clone https://github.com/fastkit/fastkit-cli.git
-cd fastkit-cli
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Test CLI locally
 fastkit --help
 ```
 
 ---
 
-## 📝 License
+## Quickstart
 
-MIT License - see [LICENSE](LICENSE) for details.
+### Generate a complete module
+
+```bash
+fastkit make module Invoice
+```
+
+This generates the following structure:
+
+```
+modules/
+└── invoices/
+    ├── __init__.py
+    ├── models.py
+    ├── schemas.py
+    ├── repository.py
+    ├── service.py
+    └── router.py
+```
+
+With a confirmation and next steps:
+
+```
+Generating module: Invoice
+  Location : modules/invoices/
+  Model    : Invoice
+  Table    : invoices
+  Mode     : sync
+
+  ✓  __init__.py
+  ✓  models.py
+  ✓  schemas.py
+  ✓  repository.py
+  ✓  service.py
+  ✓  router.py
+
+  ✓  Registered model in alembic/env.py
+
+Done! Next steps:
+  1. Define your fields in  modules/invoices/models.py
+  2. Add schemas in          modules/invoices/schemas.py
+  3. Run: fastkit migrate make -m 'create_invoices'
+```
+
+### Generate an async module
+
+```bash
+fastkit make module Invoice --async
+```
+
+Generates the same structure but with async repository, service, and router using `AsyncSession` and `get_async_db`.
 
 ---
 
-## 🔗 Links
+## make
 
-- [**FastKit Core**](https://github.com/fastkit/fastkit-core) - Core framework
-- [**FastKit Auth**](https://github.com/fastkit/fastkit-auth) - Authentication
-- [**Documentation**](https://docs.fastkit.dev/cli) - Full CLI docs
-- [**PyPI**](https://pypi.org/project/fastkit-cli/) - Package repository
+### `fastkit make module`
+
+Generates a complete module with all layers.
+
+```bash
+fastkit make module <Name> [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--dir` | `-d` | `modules` | Root directory for modules |
+| `--async` | `-a` | `False` | Use async repository, service, and router |
+| `--force` | `-f` | `False` | Overwrite existing files |
+
+**Examples:**
+
+```bash
+# Basic usage
+fastkit make module Invoice
+
+# Async mode
+fastkit make module Invoice --async
+
+# Custom directory
+fastkit make module Invoice --dir src/modules
+
+# Compound name (automatically converted)
+fastkit make module InvoiceItem
+
+# Overwrite existing files
+fastkit make module Invoice --force
+```
 
 ---
 
-<div align="center">
-  
-**Built with ❤️ by the FastKit team**
+### `fastkit make model`
 
-[⭐ Star us on GitHub](https://github.com/fastkit/fastkit-cli)
+Generates only the SQLAlchemy model file.
 
-</div>
+```bash
+fastkit make model <Name> [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--path` | `-p` | `.` | Target directory |
+| `--force` | `-f` | `False` | Overwrite existing file |
+
+**Examples:**
+
+```bash
+fastkit make model Invoice
+fastkit make model Invoice --path modules/invoices
+```
+
+**Generated `models.py`:**
+
+```python
+from fastkit_core.database import BaseWithTimestamps, IntIdMixin
+# from fastkit_core.database import UUIDMixin, SoftDeleteMixin, SlugMixin
+
+class Invoice(BaseWithTimestamps, IntIdMixin):
+    __tablename__ = "invoices"
+    # Define your fields here
+```
+
+---
+
+### `fastkit make schema`
+
+Generates only the Pydantic schemas file.
+
+```bash
+fastkit make schema <Name> [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--path` | `-p` | `.` | Target directory |
+| `--force` | `-f` | `False` | Overwrite existing file |
+
+**Examples:**
+
+```bash
+fastkit make schema Invoice
+fastkit make schema Invoice --path modules/invoices
+```
+
+**Generated `schemas.py`:**
+
+```python
+from fastkit_core.validation import BaseSchema
+
+class InvoiceCreate(BaseSchema):
+    pass  # Define your fields here
+
+class InvoiceUpdate(BaseSchema):
+    pass  # All fields optional for partial updates
+
+class InvoiceResponse(BaseSchema):
+    id: int
+    model_config = {"from_attributes": True}
+```
+
+---
+
+### `fastkit make repository`
+
+Generates only the repository file.
+
+```bash
+fastkit make repository <Name> [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--path` | `-p` | `.` | Target directory |
+| `--async` | `-a` | `False` | Use async repository |
+| `--force` | `-f` | `False` | Overwrite existing file |
+
+**Examples:**
+
+```bash
+fastkit make repository Invoice
+fastkit make repository Invoice --async
+fastkit make repository Invoice --path modules/invoices
+```
+
+---
+
+### `fastkit make service`
+
+Generates only the service file.
+
+```bash
+fastkit make service <Name> [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--path` | `-p` | `.` | Target directory |
+| `--async` | `-a` | `False` | Use async service |
+| `--force` | `-f` | `False` | Overwrite existing file |
+
+**Examples:**
+
+```bash
+fastkit make service Invoice
+fastkit make service Invoice --async
+```
+
+---
+
+### `fastkit make router`
+
+Generates only the router file with full CRUD endpoints.
+
+```bash
+fastkit make router <Name> [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--path` | `-p` | `.` | Target directory |
+| `--async` | `-a` | `False` | Use async router |
+| `--force` | `-f` | `False` | Overwrite existing file |
+
+**Examples:**
+
+```bash
+fastkit make router Invoice
+fastkit make router Invoice --async
+```
+
+**Generated endpoints:**
+
+```
+GET    /invoices        → index   (paginated list)
+GET    /invoices/{id}   → show
+POST   /invoices        → store
+PUT    /invoices/{id}   → update
+DELETE /invoices/{id}   → destroy
+```
+
+---
+
+## migrate
+
+Wrapper around [Alembic](https://alembic.sqlalchemy.org/) migrations.
+
+### `fastkit migrate run`
+
+Run all pending migrations.
+
+```bash
+fastkit migrate run
+# Equivalent to: alembic upgrade head
+```
+
+### `fastkit migrate make`
+
+Generate a new migration based on model changes.
+
+```bash
+fastkit migrate make -m "create_invoices"
+# Equivalent to: alembic revision --autogenerate -m "create_invoices"
+```
+
+| Option | Short | Required | Description |
+|--------|-------|----------|-------------|
+| `--message` | `-m` | Yes | Migration description |
+
+### `fastkit migrate rollback`
+
+Rollback the last migration.
+
+```bash
+fastkit migrate rollback
+# Equivalent to: alembic downgrade -1
+```
+
+### `fastkit migrate status`
+
+Show the current migration status.
+
+```bash
+fastkit migrate status
+# Equivalent to: alembic current
+```
+
+---
+
+## db seed
+
+Run database seeders.
+
+```bash
+# Run all seeders
+fastkit db seed
+
+# Run a specific seeder
+fastkit db seed UserSeeder
+```
+
+---
+
+## server
+
+Start the FastAPI development server.
+
+```bash
+fastkit server
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--host` | `-h` | `0.0.0.0` | Host to bind |
+| `--port` | `-p` | `8000` | Port to bind |
+| `--reload / --no-reload` | | `True` | Enable auto-reload |
+
+**Examples:**
+
+```bash
+# Default
+fastkit server
+
+# Custom host and port
+fastkit server --host 127.0.0.1 --port 9000
+
+# Without auto-reload
+fastkit server --no-reload
+```
+
+---
+
+## new
+
+Create a new FastKit project from a template.
+
+```bash
+fastkit new my-project
+```
+
+---
+
+## Naming Conventions
+
+FastKit CLI automatically handles naming conversions regardless of how you pass the module name:
+
+| Input | Model | Snake | Table | Folder |
+|-------|-------|-------|-------|--------|
+| `Invoice` | `Invoice` | `invoice` | `invoices` | `invoices` |
+| `invoice` | `Invoice` | `invoice` | `invoices` | `invoices` |
+| `InvoiceItem` | `InvoiceItem` | `invoice_item` | `invoice_items` | `invoice_items` |
+| `invoice_item` | `InvoiceItem` | `invoice_item` | `invoice_items` | `invoice_items` |
+| `Category` | `Category` | `category` | `categories` | `categories` |
+
+---
+
+## Typical Workflow
+
+```bash
+# 1. Generate a new module
+fastkit make module Invoice --async
+
+# 2. Define your model fields
+# Edit modules/invoices/models.py
+
+# 3. Define your schemas
+# Edit modules/invoices/schemas.py
+
+# 4. Generate and run migration
+fastkit migrate make -m "create_invoices"
+fastkit migrate run
+
+# 5. Register the router in your main app
+# In app.py:
+# from modules.invoices.router import router as invoices_router
+# app.include_router(invoices_router, prefix="/api/v1")
+
+# 6. Start the server
+fastkit server
+```
+
+---
+
+## Related Packages
+
+- [fastkit-core](https://pypi.org/project/fastkit-core/) — Base classes, repository pattern, validation, i18n
+- [mailbridge](https://pypi.org/project/mailbridge/) — Email delivery abstraction
+
+---
+
+## License
+
+FastKit Core is open-source software licensed under the [MIT License](https://opensource.org/license/MIT).
+
+---
+
+## Built by CodeVelo
+
+FastKit is developed and maintained by [Codevelo](https://codevelo.io) for the FastAPI community.
