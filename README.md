@@ -10,7 +10,7 @@ FastKit CLI is a code generation tool for the [FastKit](https://github.com/codev
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.12
 - [fastkit-core](https://pypi.org/project/fastkit-core/)
 
 ---
