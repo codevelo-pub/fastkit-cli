@@ -1,6 +1,6 @@
 [project]
 name = "fastkit-cli"
-version = "0.1.0"
+version = "0.1.2"
 description = "FastKit CLI is a code generation tool for the fastkit core packge."
 readme = "README.md"
 requires-python = ">=3.12"
