@@ -84,7 +84,7 @@ def _discover_seeders() -> list[str]:
     ]
 
 
-@app.callback(invoke_without_command=True)
+@app.command("seed")
 def seed(seeder: str = typer.Argument(None, help="Specific seeder class to run (e.g. UserSeeder)")):
     """
     Run database seeders.
