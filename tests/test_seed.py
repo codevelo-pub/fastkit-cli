@@ -3,8 +3,9 @@ import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
+from fastkit_cli.main import app
 
-from fastkit_cli.commands.seed import app, _discover_seeders, _run_seeder
+from fastkit_cli.commands.seed import _discover_seeders, _run_seeder
 
 runner = CliRunner()
 
@@ -59,7 +60,7 @@ class TestDiscoverSeeders:
 class TestSeedAll:
     def test_warns_when_no_seeders_dir(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, [])
+        result = runner.invoke(app, ["db", "seed"])
 
         assert result.exit_code == 0
         assert "No seeders found" in result.output
@@ -71,7 +72,7 @@ class TestSeedAll:
 
         with patch("fastkit_cli.commands.seed._discover_seeders", return_value=["UserSeeder", "InvoiceSeeder"]), \
              patch("fastkit_cli.commands.seed._run_seeder") as mock_run:
-            result = runner.invoke(app, [])
+            result = runner.invoke(app, ["db", "seed"])
 
         assert result.exit_code == 0
         assert mock_run.call_count == 2
@@ -83,7 +84,7 @@ class TestSeedAll:
 
         with patch("fastkit_cli.commands.seed._discover_seeders", return_value=["UserSeeder", "InvoiceSeeder"]), \
              patch("fastkit_cli.commands.seed._run_seeder"):
-            result = runner.invoke(app, [])
+            result = runner.invoke(app, ["db", "seed"])
 
         assert "2" in result.output
 
@@ -97,7 +98,7 @@ class TestSeedSpecific:
         monkeypatch.chdir(tmp_path)
 
         with patch("fastkit_cli.commands.seed._run_seeder") as mock_run:
-            result = runner.invoke(app, ["UserSeeder"])
+            result = runner.invoke(app, ["db", "seed", "UserSeeder"])
 
         assert result.exit_code == 0
         mock_run.assert_called_once_with("UserSeeder")
@@ -106,7 +107,7 @@ class TestSeedSpecific:
         monkeypatch.chdir(tmp_path)
 
         with patch("fastkit_cli.commands.seed._run_seeder"):
-            result = runner.invoke(app, ["UserSeeder"])
+            result = runner.invoke(app, ["db", "seed", "UserSeeder"])
 
         assert "UserSeeder" in result.output
 
@@ -132,7 +133,7 @@ class TestRunSeeder:
         monkeypatch.chdir(tmp_path)
 
         with patch("fastkit_cli.commands.seed._load_seeder_class", side_effect=SystemExit(1)):
-            result = runner.invoke(app, ["UserSeeder"])
+            result = runner.invoke(app, ["db", "seed", "UserSeeder"])
 
         assert result.exit_code != 0
 
@@ -148,7 +149,7 @@ class TestRunSeeder:
 
         with patch("fastkit_cli.commands.seed._load_seeder_class") as mock_load:
             mock_load.return_value = type("BadSeeder", (), {})  # Class without run()
-            result = runner.invoke(app, ["BadSeeder"])
+            result = runner.invoke(app, ["db", "seed", "BadSeeder"])
 
         assert result.exit_code == 1
         assert "run()" in result.output
@@ -160,7 +161,7 @@ class TestRunSeeder:
         mock_class.return_value.run.side_effect = Exception("DB connection failed")
 
         with patch("fastkit_cli.commands.seed._load_seeder_class", return_value=mock_class):
-            result = runner.invoke(app, ["UserSeeder"])
+            result = runner.invoke(app, ["db", "seed", "UserSeeder"])
 
         assert result.exit_code == 1
         assert "DB connection failed" in result.output
