@@ -6,6 +6,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 FastKit CLI follows [Semantic Versioning](https://semver.org/).
 
 ---
+
+## [0.2.3] — 2026-05-04
+
+Patch release. Relaxes the `fastkit-core` version constraint so consumers
+automatically receive core patch releases without requiring a CLI update.
+
+### Changed
+
+- **`fastkit-core` dependency constraint** — changed from `>=0.4.1` (pinned lower
+  bound) to `>=0.4.0,<0.5.0` (compatible release range).
+
+  The previous constraint required manual CLI updates on every `fastkit-core` patch
+  release. The new constraint allows `pip` and `uv` to resolve any `0.4.x` version
+  automatically, so bugfixes such as `0.4.2` are picked up without any action from
+  the developer.
+
+  The upper bound `<0.5.0` ensures the CLI is never silently paired with a future
+  minor release that may introduce breaking changes.
+
+  ```toml
+  # pyproject.toml — before
+  "fastkit-core>=0.4.1"
+
+  # pyproject.toml — after
+  "fastkit-core>=0.4.0,<0.5.0"
+  ```
+
+  **Backwards compatible** — no CLI behaviour changes. Only the resolver constraint
+  is affected.
+
+---
+
 ## [0.2.2] — 2026-04-22
 
 ### Fixed
